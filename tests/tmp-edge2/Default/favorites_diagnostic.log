@@ -1,0 +1,18 @@
+2026-11-23 08:15:42.641: [INFO] CurrentProfilePath: C:\Users\nkdjr\PycharmProjects\auto-start\tests\tmp-edge2\Default
+2026-11-23 08:15:42.641: [INFO] Profiles total count: 1
+2026-11-23 08:15:42.641: [INFO] Profile: name=用户配置 1 path=C:\Users\nkdjr\PycharmProjects\auto-start\tests\tmp-edge2\Default lastActive=2026-11-23T08:15:42.629Z
+2026-11-23 08:15:42.641: [INFO] LastUsedProfileDir: C:\Users\nkdjr\PycharmProjects\auto-start\tests\tmp-edge2\Default
+2026-11-23 08:15:42.641: [INFO] MostRecentlyActiveProfile: name=用户配置 1 path=C:\Users\nkdjr\PycharmProjects\auto-start\tests\tmp-edge2\Default lastActive=2026-11-23T08:15:42.629Z
+2026-11-23 08:15:42.641: [INFO] OnDoneLoading sync enabled: 0
+2026-11-23 08:15:42.641: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-11-23 08:15:42.641: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-11-23 08:15:42.641: [INFO] BookmarksSnapshot Startup total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-11-23 08:15:42.647: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-11-23 08:15:42.821: [INFO] VisibilityChanged: 0
+2026-11-23 08:15:44.066: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-11-23 08:15:44.071: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-11-23 08:15:44.073: [INFO] Primary account changed.
+2026-11-23 08:15:44.073: [INFO] OnPrimaryAccountChanged PrimaryAccountChangeEvent::Type::kSet
+2026-11-23 08:15:44.082: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-11-23 08:15:44.091: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-11-23 08:15:46.150: [INFO] BookmarksSnapshot Shutdown total=0 bar=0 other=0 mobile=0 showBar=0 showBarNTP=1

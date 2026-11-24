@@ -1,0 +1,9 @@
+/config.json
+/logs/
+/run/
+/desktop/Core.dll
+/desktop/tests/CoreTests.exe
+/tests/tmp-edge/
+__pycache__/
+*.pyc
+/tests/tmp/

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>应用管家</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+          <path d="M7 10h4M7 14h7"></path>
+          <circle cx="17" cy="9" r="1.6" fill="currentColor" stroke="none"></circle>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>应用管家</h1>
+        <span>App Manager</span>
+      </div>
+    </div>
+
+    <div class="server-pill" id="serverPill" title="管理服务状态">
+      <span class="dot"></span>
+      <span id="serverText">连接中…</span>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="btn ghost hide-sm" id="btnStartAll">全部启动</button>
+      <button class="btn ghost hide-sm" id="btnStopAll">全部停止</button>
+      <button class="btn ghost" id="btnAutostart" title="管理开机自启">
+        <span class="dot" id="autostartDot"></span>
+        <span class="hide-xs">开机自启</span>
+      </button>
+      <button class="btn icon" id="btnSettings" title="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3.2"></circle>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <div class="sidebar-title">应用 <span class="count" id="appCount">0</span></div>
+        <button class="btn small primary" id="btnAdd">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          添加
+        </button>
+      </div>
+      <nav class="app-list" id="appList"></nav>
+      <div class="sidebar-foot">
+        <button class="link-btn" id="btnSystem">服务日志</button>
+        <span class="ver" id="versionText"></span>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div class="empty" id="emptyState" hidden>
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+            <path d="M8 10l3 2.5L8 15M13 15h3"></path>
+          </svg>
+        </div>
+        <h2>还没有托管的应用</h2>
+        <p>添加一个 Python 或 Node 项目，管家会在开机后自动把它拉起来，并在这里显示运行日志。</p>
+        <button class="btn primary" id="btnAddEmpty">添加第一个应用</button>
+      </div>
+
+      <div class="app-view" id="appView" hidden>
+        <div class="app-head">
+          <div class="app-title">
+            <h2 id="appName">—</h2>
+            <span class="chip" id="appStatusChip">已停止</span>
+            <span class="uptime" id="appUptime"></span>
+          </div>
+          <div class="app-actions">
+            <button class="btn ghost small" id="btnEdit">编辑</button>
+            <button class="btn ghost small danger-text" id="btnDelete">删除</button>
+            <span class="vsep"></span>
+            <button class="btn primary" id="btnStart">启动</button>
+            <button class="btn" id="btnRestart">重启</button>
+            <button class="btn danger" id="btnStop">停止</button>
+          </div>
+        </div>
+
+        <div class="alert error" id="appError" hidden></div>
+        <div class="meta-grid" id="appMeta"></div>
+
+        <div class="logs">
+          <div class="logs-head">
+            <div class="logs-title">
+              运行日志
+              <span class="log-count" id="logCount"></span>
+            </div>
+            <div class="logs-tools">
+              <input class="filter-input" id="logFilter" type="search" placeholder="筛选日志…" autocomplete="off">
+              <label class="check"><input type="checkbox" id="autoScroll" checked> 自动滚动</label>
+              <label class="check hide-sm"><input type="checkbox" id="wrapLog"> 换行</label>
+              <button class="btn tiny ghost" id="btnCopyLog">复制</button>
+              <button class="btn tiny ghost hide-sm" id="btnDownloadLog">下载</button>
+              <button class="btn tiny ghost" id="btnClearLog">清空</button>
+            </div>
+          </div>
+          <div class="log-pane" id="logPane">
+            <div class="log-inner" id="logInner"></div>
+            <div class="log-empty" id="logEmpty">暂无日志。启动应用后，控制台输出会实时显示在这里。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-root" id="modalRoot"></div>
+  <div class="toasts" id="toasts"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
