@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace AppManager
 {
@@ -892,57 +893,210 @@ namespace AppManager
         [STAThread]
         public static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            string config = null;
-            bool minimized = false;
-            for (int i = 0; i < args.Length; i++)
-            {
-                if (args[i] == "--config" && i + 1 < args.Length) config = args[++i];
-                else if (args[i] == "--minimized") minimized = true;
-            }
-
-            Paths.Init(config);
-            bool created;
-            singleInstance = new Mutex(true, "AppManagerDesktop_SingleInstance", out created);
-            if (!created)
-            {
-                if (!minimized)
-                    MessageBox.Show("应用管家已经在运行，请查看系统托盘。", "应用管家",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            Application.ThreadException += delegate (object s, ThreadExceptionEventArgs e)
-            {
-                MessageBox.Show("发生了一个错误：" + e.Exception.Message, "应用管家",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            };
-
-            Supervisor svc = new Supervisor();
             try
             {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+
+                bool quiet = HasArg(args, "--quiet");
+                bool selfTest = HasArg(args, "--self-test");
+                string config = null;
+                bool minimized = false;
+                for (int i = 0; i < args.Length; i++)
+                {
+                    if (args[i] == "--config" && i + 1 < args.Length) config = args[++i];
+                    else if (args[i] == "--minimized") minimized = true;
+                }
+
+                Paths.Init(config);
+
+                if (selfTest)
+                {
+                    Environment.ExitCode = RunSelfTest(quiet);
+                    return;
+                }
+
+                if (Paths.UsingFallback && !quiet)
+                {
+                    MessageBox.Show(
+                        "程序所在目录不可写，配置和日志已切换到：\r\n" + Paths.BaseDir +
+                        "\r\n\r\n原因：" + Paths.FallbackReason +
+                        "\r\n\r\n把程序放到有写权限的目录（例如 D:\\Apps\\AppManager）可以避免这个提示。",
+                        "应用管家", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                bool created;
+                singleInstance = new Mutex(true, "AppManagerDesktop_SingleInstance", out created);
+                if (!created)
+                {
+                    if (!minimized)
+                        MessageBox.Show("应用管家已经在运行，请查看系统托盘。", "应用管家",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                Application.ThreadException += delegate (object s, ThreadExceptionEventArgs e)
+                {
+                    MessageBox.Show("发生了一个错误：" + e.Exception.Message, "应用管家",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                };
+
+                Supervisor svc = new Supervisor();
                 svc.Load();
+
+                if (Supervisor.IsWebManagerRunning(svc.Config.port, svc.Config.host))
+                {
+                    MessageBox.Show(
+                        "检测到 Web 版应用管家正在运行（端口 " + svc.Config.port + "）。\r\n" +
+                        "请先在 Web 版中停止管理服务，再打开桌面版，避免重复启动同一批应用。",
+                        "应用管家", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                Application.Run(new MainForm(svc, minimized));
             }
             catch (Exception ex)
             {
-                MessageBox.Show("配置读取失败：\r\n" + ex.Message, "应用管家",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                ReportCrash(ex, HasArg(args, "--quiet"));
+            }
+        }
+
+        private static bool HasArg(string[] args, string name)
+        {
+            foreach (string a in args)
+            {
+                if (string.Equals(a, name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static int RunSelfTest(bool quiet)
+        {
+            StringBuilder sb = new StringBuilder();
+            bool ok = true;
+            sb.AppendLine("应用管家自检  " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            sb.AppendLine("系统: " + Environment.OSVersion.VersionString +
+                          (Environment.Is64BitOperatingSystem ? " 64位" : " 32位"));
+            sb.AppendLine("程序: " + Application.ExecutablePath);
+            sb.AppendLine("数据目录: " + Paths.BaseDir +
+                          (Paths.UsingFallback ? "（已回退，原因：" + Paths.FallbackReason + "）" : ""));
+            sb.AppendLine("配置文件: " + Paths.ConfigPath);
+
+            string release = "未检测到";
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+                    @"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full"))
+                {
+                    if (key != null)
+                    {
+                        object v = key.GetValue("Release");
+                        if (v != null) release = v.ToString();
+                    }
+                }
+            }
+            catch (Exception) { }
+            sb.AppendLine(".NET Framework Release: " + release);
+
+            bool writable = CanWrite(Paths.LogsDir);
+            sb.AppendLine("日志目录可写: " + (writable ? "是" : "否"));
+            if (!writable) ok = false;
+
+            string ps = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell\\v1.0\\powershell.exe");
+            sb.AppendLine("PowerShell: " + (File.Exists(ps) ? "正常" : "未找到 " + ps));
+            if (!File.Exists(ps)) ok = false;
+
+            try
+            {
+                RootConfig cfg = ConfigStore.Load();
+                sb.AppendLine("配置读取: 成功（" + cfg.apps.Count + " 个应用）");
+            }
+            catch (Exception ex)
+            {
+                ok = false;
+                sb.AppendLine("配置读取: 失败 - " + ex.Message);
             }
 
-            if (Supervisor.IsWebManagerRunning(svc.Config.port, svc.Config.host))
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", "/c exit 0");
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.RedirectStandardOutput = true;
+                using (Process p = Process.Start(psi))
+                {
+                    p.WaitForExit(5000);
+                    sb.AppendLine("子进程测试: 成功");
+                }
+            }
+            catch (Exception ex)
+            {
+                ok = false;
+                sb.AppendLine("子进程测试: 失败 - " + ex.Message);
+            }
+
+            sb.AppendLine();
+            sb.AppendLine(ok ? "结论: 自检通过" : "结论: 发现问题，请查看上面的行");
+
+            string text = sb.ToString();
+            try { File.WriteAllText(Path.Combine(Paths.BaseDir, "diagnose-report.txt"), text, new UTF8Encoding(true)); }
+            catch (Exception) { }
+            try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "AppManagerDesktop-diagnose.txt"), text, new UTF8Encoding(true)); }
+            catch (Exception) { }
+
+            if (!quiet)
+            {
+                MessageBox.Show(text, "应用管家自检",
+                    MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            }
+            return ok ? 0 : 2;
+        }
+
+        private static bool CanWrite(string dir)
+        {
+            try
+            {
+                string probe = Path.Combine(dir, ".write-test-" + Guid.NewGuid().ToString("N") + ".tmp");
+                using (FileStream fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    fs.WriteByte(65);
+                }
+                File.Delete(probe);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private static void ReportCrash(Exception ex, bool quiet)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("应用管家启动失败");
+            sb.AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            sb.AppendLine(ex.GetType().FullName + ": " + ex.Message);
+            sb.AppendLine();
+            sb.AppendLine(ex.StackTrace);
+            string text = sb.ToString();
+
+            string tempLog = Path.Combine(Path.GetTempPath(), "AppManagerDesktop-error.log");
+            try { File.WriteAllText(tempLog, text, new UTF8Encoding(true)); }
+            catch (Exception) { }
+            try
+            {
+                File.WriteAllText(Path.Combine(Paths.BaseDir, "startup-error.log"), text, new UTF8Encoding(true));
+            }
+            catch (Exception) { }
+
+            if (!quiet)
             {
                 MessageBox.Show(
-                    "检测到 Web 版应用管家正在运行（端口 " + svc.Config.port + "）。\r\n" +
-                    "请先在 Web 版中停止管理服务，再打开桌面版，避免重复启动同一批应用。",
-                    "应用管家", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                    text + "\r\n详细信息已写入：\r\n" + tempLog,
+                    "应用管家启动失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            Application.Run(new MainForm(svc, minimized));
         }
     }
 }

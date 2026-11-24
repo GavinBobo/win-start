@@ -20,21 +20,63 @@ namespace AppManager
     {
         public static string BaseDir;
         public static string ConfigPath;
+        public static bool UsingFallback;
+        public static string FallbackReason = "";
 
         public static string LogsDir { get { return Path.Combine(BaseDir, "logs"); } }
         public static string RunDir { get { return Path.Combine(BaseDir, "run"); } }
 
         public static void Init(string configPath)
         {
-            if (string.IsNullOrEmpty(configPath))
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            string requested = string.IsNullOrEmpty(configPath)
+                ? Path.Combine(exeDir, "config.json")
+                : Path.GetFullPath(configPath);
+
+            BaseDir = Path.GetDirectoryName(requested);
+            ConfigPath = requested;
+
+            try
             {
-                configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+                Directory.CreateDirectory(BaseDir);
+                EnsureWritable(BaseDir);
+                Directory.CreateDirectory(LogsDir);
+                Directory.CreateDirectory(RunDir);
+                EnsureWritable(LogsDir);
+                EnsureWritable(RunDir);
             }
-            ConfigPath = Path.GetFullPath(configPath);
-            BaseDir = Path.GetDirectoryName(ConfigPath);
-            Directory.CreateDirectory(BaseDir);
-            Directory.CreateDirectory(LogsDir);
-            Directory.CreateDirectory(RunDir);
+            catch (Exception ex)
+            {
+                // 程序目录不可写（例如放在 Program Files、只读共享盘）时，
+                // 自动切换到当前用户的 AppData 目录，避免启动失败后毫无提示。
+                string oldConfig = requested;
+                string fallback = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "AppManagerDesktop");
+                UsingFallback = true;
+                FallbackReason = ex.Message;
+                BaseDir = fallback;
+                ConfigPath = Path.Combine(fallback, "config.json");
+                Directory.CreateDirectory(BaseDir);
+                Directory.CreateDirectory(LogsDir);
+                Directory.CreateDirectory(RunDir);
+                try
+                {
+                    if (File.Exists(oldConfig) && !File.Exists(ConfigPath))
+                        File.Copy(oldConfig, ConfigPath);
+                }
+                catch (Exception) { }
+            }
+        }
+
+        private static void EnsureWritable(string dir)
+        {
+            string probe = Path.Combine(dir, ".write-test-" + Guid.NewGuid().ToString("N") + ".tmp");
+            using (FileStream fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                fs.WriteByte(65);
+            }
+            File.Delete(probe);
         }
     }
 

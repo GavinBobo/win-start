@@ -168,6 +168,16 @@ start-web.cmd
 2. 看 `logs\_manager.log`
 3. 移动过程序目录后，需要重新安装一次开机自启（任务里记录的是绝对路径）
 
+**双击 AppManagerDesktop.exe 没反应**
+
+先双击 `diagnose.cmd`，它会检查 .NET、解除“来自网络”的阻止标记、运行自检并生成报告。常见原因：
+
+- 没装 .NET Framework 4.x：安装 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)
+- 程序放在 `C:\Program Files` 等无写权限目录：新版会自动把配置和日志切换到 `%LOCALAPPDATA%\AppManagerDesktop`，并给出提示
+- 文件被 Windows 标记为“来自网络”或被安全软件拦截：右键 exe → 属性 → 勾选“解除锁定”，或把整个目录加入杀毒软件白名单
+- 如果任务管理器里能看到 `AppManagerDesktop.exe`，说明程序其实在运行，检查系统托盘
+- 系统需要带桌面体验的 Windows；Windows Server Core 没有图形界面，无法运行 WinForms 桌面程序
+
 **找不到 node / npm**
 在「设置 → 额外 PATH」填 Node 目录；如果使用 SYSTEM 模式且 Node 是用户目录安装的，建议改用「登录后启动」。
 
